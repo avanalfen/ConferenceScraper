@@ -1,46 +1,78 @@
 from requests import get
 from bs4 import BeautifulSoup
+import os
 
-year = "2013" # you can choose any year
-month = "04" # months to choose are either '04' or '10'
+yearsOfTalksToDownload = 20
+currentYearDownloading = 1
 
-base = 'https://www.lds.org'
-url = 'https://www.lds.org/general-conference/' + year + '/' + month + '?lang=eng'
+year = 2006
+month = 10
 
-response = get(url)
+while currentYearDownloading < yearsOfTalksToDownload:
 
-html_soup = BeautifulSoup(response.text, 'html.parser')
+    URL_MONTH = str(month)
 
-talk_containers = html_soup.find_all('div', class_ = 'lumen-tile lumen-tile--horizontal lumen-tile--list')
+    if URL_MONTH == '4':
+        URL_MONTH = '04'
 
-while len(talk_containers) > 0:
+    base = 'https://www.lds.org'
+    url = 'https://www.lds.org/general-conference/' + str(year) + '/' + URL_MONTH + '?lang=eng'
 
-    first = talk_containers[0]
-    titleDiv = first.find_all('div', class_='lumen-tile__title')[0].div
+    response = get(url)
 
-    if titleDiv is None: // Crash fix
+    html_soup = BeautifulSoup(response.text, 'html.parser')
+
+    talk_containers = html_soup.find_all('div', class_='lumen-tile lumen-tile--horizontal lumen-tile--list')
+
+    totalTalks = len(talk_containers)
+    print(url)
+
+    while len(talk_containers) > 0:
+        print('Downloading year: ' + str(currentYearDownloading) + '/' + str(yearsOfTalksToDownload) + ' talk: ' + str(totalTalks - (len(talk_containers)) + 1) + '/' + str(totalTalks))  # update progress
+
+        first = talk_containers[0]
+        titleDiv = first.find_all('div', class_='lumen-tile__title')[0].div
+
+        if titleDiv is None:  # crash fix
+            talk_containers.pop(0)
+            continue
+
+        title = titleDiv.text
+        author = first.find_all('div', class_='lumen-tile__content')[0].text
+        detailURL = base + first.a['href']
+        imageURL = first.img['data-src']
+
+        detailResponse = get(detailURL)
+        detailSoup = BeautifulSoup(detailResponse.text, 'html.parser')
+
+        fullTalkDiv = detailSoup.find_all('div', class_ = 'body-block')
+
+        if len(fullTalkDiv) == 0:  # crash fix
+            talk_containers.pop(0)
+            continue
+
+        fullTalk = fullTalkDiv[0].text
+
+        talksDir = 'talks/'
+        authorDir = author + '/'
+        directory = talksDir + authorDir
+
+        if not os.path.exists(talksDir):  # create talk folder if not there
+            os.mkdir(talksDir)
+
+        if not os.path.exists(talksDir + authorDir):  # create author folder if it doesn't exist
+            os.mkdir(talksDir + authorDir)
+
+        with open(directory + title, 'w+') as the_file:  # write talk to file
+            the_file.write(fullTalk)
+
         talk_containers.pop(0)
-        continue
 
-    title = titleDiv.text
-    author = first.find_all('div', class_='lumen-tile__content')[0].text
-    detailURL = base + first.a['href']
-    imageURL = first.img['data-src']
-
-    sleep(2) # don't shotgun the website
-    
-    detailResponse = get(detailURL)
-    detailSoup = BeautifulSoup(detailResponse.text, 'html.parser')
-    fullTalk = detailSoup.find_all('div', class_ = 'body-block')[0].text
-
-    filename = author + ' - ' + title + '.txt'
-
-    with open(filename, 'a') as the_file:
-        utf8 = fullTalk.encode("utf8")
-        the_file.write(utf8)
-    
-    sleep(2) // # don't shotgun the website
-    
-    talk_containers.pop(0)
+    if str(month) == '04':
+        month = 10
+    else:
+        year -= 1
+        month = 4
+        currentYearDownloading += 1
 
 print('Done')
