@@ -42,6 +42,8 @@ while currentYearDownloading < yearsOfTalksToDownload:
         detailURL = base + first.a['href']
         imageURL = first.img['data-src']
 
+        sleep(3)  # Don't shotgun blast the website
+            
         detailResponse = get(detailURL)
         detailSoup = BeautifulSoup(detailResponse.text, 'html.parser')
 
@@ -67,6 +69,8 @@ while currentYearDownloading < yearsOfTalksToDownload:
             the_file.write(fullTalk)
 
         talk_containers.pop(0)
+
+        sleep(3)  # Don't shotgun blast the website
 
     if str(month) == '04':
         month = 10
